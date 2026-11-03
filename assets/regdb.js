@@ -50,6 +50,15 @@ window.RegDB = (function () {
       }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json() });
     },
 
+    // 後台寄通知信（只有管理員）
+    broadcast: function (body) { return callAdmins(body, 'broadcast') },
+    broadcasts: function () { return client().from('broadcasts').select('*').order('created_at', { ascending: false }).limit(30).then(ok) },
+    broadcastCounts: function (id) {
+      var c = client(), n = function (s) { return c.from('broadcast_recipients').select('id', { count: 'exact', head: true }).eq('broadcast_id', id).eq('status', s).then(function (x) { return x.count || 0 }) };
+      return Promise.all([n('sent'), n('failed'), n('pending'), n('sending')]).then(function (a) { return { sent: a[0], failed: a[1], pending: a[2], sending: a[3] } });
+    },
+    broadcastFailures: function (id) { return client().from('broadcast_recipients').select('email,error').eq('broadcast_id', id).eq('status', 'failed').limit(50).then(ok) },
+
     // 課程報名開關（訪客可讀，只有管理員可改）
     batches: function () {
       return fetch(URL + '/rest/v1/batches?select=name,open&order=sort', { headers: { apikey: KEY, Authorization: 'Bearer ' + KEY } })

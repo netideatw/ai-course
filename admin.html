@@ -164,6 +164,21 @@ button.dl{font-weight:500;font-size:13px;max-width:100%;overflow:hidden;text-ove
 .tabs .cnt{font-family:var(--f-num);font-size:12px;background:var(--sunk);color:var(--muted);border-radius:999px;padding:1px 8px;margin-left:4px}
 .tabs button[aria-selected="true"] .cnt{background:var(--accent-soft);color:var(--accent)}
 .panel{border-top-left-radius:0}
+.cform{display:grid;gap:14px}
+.cform label{display:grid;gap:6px;font-size:14px;font-weight:700;color:var(--ink)}
+.cform label i{color:var(--no);font-style:normal}
+.cform input,.cform select,.cform textarea{width:100%;font-weight:400}
+.cform textarea{min-height:190px;resize:vertical;line-height:1.7}
+.cform code{background:var(--sunk);border-radius:4px;padding:1px 6px;font-size:13px}
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.crec{margin:0;font-size:14px;background:var(--accent-soft);color:var(--ink);border-radius:10px;padding:10px 14px}
+.crec b{font-size:17px}
+.cacts{display:flex;flex-wrap:wrap;gap:10px}
+.cprog{margin-top:18px;padding:16px;background:var(--sunk);border-radius:12px;display:grid;gap:10px}
+.cprog b{color:var(--ink)}
+.cbar{height:10px;border-radius:999px;background:var(--line);overflow:hidden}
+.cbar span{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+@media (max-width:600px){.cgrid{grid-template-columns:1fr}}
 .chip{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
 .sw{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:14px}
 .sw input{width:18px;height:18px;accent-color:var(--accent);cursor:pointer}
@@ -299,6 +314,7 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
     <button type="button" role="tab" id="tab-p" aria-controls="panel-p" aria-selected="false" tabindex="-1">推廣人成效 <span class="cnt hot" id="appCnt" hidden title="待審核申請">0</span></button>
     <button type="button" role="tab" id="tab-a" aria-controls="panel-a" aria-selected="false" tabindex="-1">數據分析</button>
     <button type="button" role="tab" id="tab-m" aria-controls="panel-m" aria-selected="false" tabindex="-1" hidden>我介紹的報名者 <span class="cnt" id="mCnt">0</span></button>
+    <button type="button" role="tab" id="tab-c" aria-controls="panel-c" aria-selected="false" tabindex="-1">寄通知信</button>
     <button type="button" role="tab" id="tab-s" aria-controls="panel-s" aria-selected="false" tabindex="-1">設定</button>
   </div>
 
@@ -396,6 +412,51 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
     <p class="hint">為保護個資，姓名以○遮蔽，不顯示聯絡資料。</p>
   </section>
 
+  <section class="card panel" id="panel-c" role="tabpanel" aria-labelledby="tab-c" hidden>
+    <h2>寄通知信</h2>
+    <p class="hint" style="margin:-6px 0 16px">依課程寄信給填寫者，例如課程開放正式報名時。信件由系統信箱寄出，每人一封，收件人彼此看不到對方。</p>
+    <form id="cForm" class="cform" novalidate>
+      <div class="cgrid">
+        <label><span>課程 <i>*</i></span><select name="batch"><option>生成式AI多媒體轉化與創作</option><option>AI驅動個人化促銷</option><option>AI客服工具操作與回應管理</option><option>AI創意行銷素材生成</option></select></label>
+        <label>上課方式<select name="mode"><option value="">全部</option><option>實體</option><option>線上</option></select></label>
+      </div>
+      <p class="crec" id="cRec" role="status"></p>
+      <div class="cgrid">
+        <label><span>寄件人名稱 <i>*</i></span><input name="from_name" maxlength="60" value="次產業培訓班 AI實戰課程"></label>
+        <label>回信信箱<input name="reply_to" type="email" maxlength="80" placeholder="收件人按回覆時寄到這裡（選填）"></label>
+      </div>
+      <label><span>主旨 <i>*</i></span><input name="subject" maxlength="150" value="【開放報名】{課程} 已開放正式報名"></label>
+      <label><span>內容 <i>*</i></span><textarea name="body" rows="9" maxlength="5000">{姓名} 您好：
+
+感謝您先前填寫「{課程}」的課程意願。
+
+經濟部已公告本課程，現在開放正式報名，請點下方按鈕前往報名網站完成報名。
+
+名額有限，請儘早報名。</textarea></label>
+      <p class="hint" style="margin:-4px 0 0">可使用 <code>{姓名}</code>、<code>{課程}</code>，寄出時會自動換成每個人的資料。</p>
+      <div class="cgrid">
+        <label>報名連結<input name="link_url" type="url" maxlength="500" placeholder="https://…（選填，會顯示成按鈕）"></label>
+        <label>按鈕文字<input name="link_text" maxlength="40" value="前往報名"></label>
+      </div>
+      <p class="msg" id="cMsg" role="status"></p>
+      <div class="cacts">
+        <button type="button" id="cTest">先寄測試信給我</button>
+        <button type="submit" class="pri">確認收件人並寄出</button>
+      </div>
+    </form>
+    <div class="cprog" id="cProg" hidden>
+      <b id="cProgT"></b>
+      <div class="cbar"><span id="cBar"></span></div>
+      <p class="hint" id="cProgN" style="margin:0"></p>
+      <div class="cacts"><button type="button" id="cResume" hidden>繼續寄送</button><button type="button" id="cRetry" hidden>重寄失敗的收件人</button></div>
+    </div>
+    <h2 class="sec">寄送紀錄</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>時間</th><th>課程</th><th>主旨</th><th>寄件人</th><th>結果</th><th></th></tr></thead>
+      <tbody id="cBody"></tbody>
+    </table></div>
+  </section>
+
   <section class="card panel" id="panel-s" role="tabpanel" aria-labelledby="tab-s" hidden>
     <div id="adminSet">
     <h2>課程報名</h2>
@@ -477,7 +538,7 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
 </dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="assets/regdb.js?v=3"></script>
+<script src="assets/regdb.js?v=4"></script>
 <script>
 (function(){
   var SITE=location.href.replace(/admin\.html.*$/,'').replace(/[?#].*$/,'');
@@ -500,7 +561,7 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
   }
   // 切換成推廣者畫面（推廣者登入，或管理員檢視某位推廣者）
   function promoterUI(on,p){
-    ['regKpis','tab-r','tab-p','adminSet','byRefBox','aRef'].forEach(function(k){$(k).hidden=on});
+    ['regKpis','tab-r','tab-p','tab-c','adminSet','byRefBox','aRef'].forEach(function(k){$(k).hidden=on});
     $('tab-m').hidden=!on;
     $('ttl').textContent=on?'推廣者後台｜'+p.name:'報名後台';
     document.title=(on?'推廣者後台':'報名後台')+'｜次產業培訓班';
@@ -515,7 +576,7 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
     loadMine();tab('a');scrollTo(0,0);
   }
   function exitView(){
-    VIEW=null;promoterUI(false);TABS=['r','p','a','s'];
+    VIEW=null;promoterUI(false);TABS=['r','p','a','c','s'];
     $('tab-s').hidden=$('pwBtn').hidden=false;$('viewBar').hidden=true;
     tab('p');
   }
@@ -573,17 +634,112 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
   $('logout').addEventListener('click',function(){RegDB.signOut().then(function(){location.reload()})});
 
   // 頁籤
-  var TABS=['r','p','a','s'];
+  var TABS=['r','p','a','c','s'];
   function tab(which){
-    ['r','p','a','m','s'].forEach(function(k){var on=k===which;$('tab-'+k).setAttribute('aria-selected',on);$('tab-'+k).tabIndex=on?0:-1;$('panel-'+k).hidden=!on});
+    ['r','p','a','m','c','s'].forEach(function(k){var on=k===which;$('tab-'+k).setAttribute('aria-selected',on);$('tab-'+k).tabIndex=on?0:-1;$('panel-'+k).hidden=!on});
     if(which==='s'&&ROLE&&ROLE.admin)loadSettings();
     if(which==='a')loadStats();
+    if(which==='c'&&ROLE&&ROLE.admin)loadMail();
   }
-  ['r','p','a','m','s'].forEach(function(k){$('tab-'+k).addEventListener('click',function(){tab(k)})});
+  ['r','p','a','m','c','s'].forEach(function(k){$('tab-'+k).addEventListener('click',function(){tab(k)})});
   document.querySelector('.tabs').addEventListener('keydown',function(e){
     if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;
     var cur=TABS.findIndex(function(k){return $('tab-'+k).getAttribute('aria-selected')==='true'});
     var next=TABS[(cur+(e.key==='ArrowRight'?1:TABS.length-1))%TABS.length];tab(next);$('tab-'+next).focus();
+  });
+
+  // 寄通知信
+  var cJob=null;
+  function cVals(){
+    var f=$('cForm').elements,o={};
+    ['batch','mode','from_name','reply_to','subject','body','link_url','link_text'].forEach(function(k){o[k]=f[k].value.trim()});
+    return o;
+  }
+  function cRecipients(){
+    var v=cVals(),seen={};
+    return regs.filter(function(r){
+      if(r.batch!==v.batch||(v.mode&&r.mode!==v.mode))return false;
+      var e=String(r.email).toLowerCase();if(seen[e])return false;seen[e]=1;return true;
+    });
+  }
+  function cShowRec(){
+    var n=cRecipients().length,v=cVals();
+    $('cRec').innerHTML='收件人：<b class="num">'+n+'</b> 位（'+esc(v.batch)+'・'+(v.mode?esc(v.mode):'實體與線上')+'）';
+  }
+  function cMsg(t,bad){var m=$('cMsg');m.className='msg '+(bad?'bad':'ok');m.textContent=t}
+  function cCheck(){
+    var v=cVals();
+    if(!v.from_name)return '請填寫寄件人名稱';
+    if(v.reply_to&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.reply_to))return '回信信箱格式不正確';
+    if(!v.subject)return '請填寫主旨';
+    if(!v.body)return '請填寫內容';
+    if(v.link_url&&!/^https?:\/\/\S+$/i.test(v.link_url))return '報名連結要以 http:// 或 https:// 開頭';
+    return '';
+  }
+  function loadMail(){
+    cShowRec();
+    RegDB.broadcasts().then(function(list){
+      return Promise.all(list.map(function(b){return RegDB.broadcastCounts(b.id).then(function(c){b.c=c;return b})}));
+    }).then(function(list){
+      $('cBody').innerHTML=list.length?list.map(function(b){
+        var c=b.c,left=c.pending+c.sending;
+        return '<tr><td class="num">'+fmt(b.created_at)+'</td><td>'+esc(b.batch)+(b.mode?'<br><span class="muted">'+esc(b.mode)+'</span>':'')+'</td><td>'+esc(b.subject)+'</td><td>'+esc(b.from_name)+'</td>'+
+          '<td class="num">已寄 '+c.sent+'／'+b.total+(c.failed?'<br><span style="color:var(--no)">失敗 '+c.failed+'</span>':'')+(left?'<br><span class="muted">待寄 '+left+'</span>':'')+'</td>'+
+          '<td class="acts">'+(c.pending?'<button type="button" data-cgo="'+esc(b.id)+'" data-ctotal="'+b.total+'">繼續寄送</button> ':'')+(c.failed?'<button type="button" data-cfail="'+esc(b.id)+'">查看失敗</button>':'')+'</td></tr>';
+      }).join(''):'<tr><td colspan="6" class="empty">還沒有寄送紀錄</td></tr>';
+    },function(){$('cBody').innerHTML='<tr><td colspan="6" class="empty">讀取紀錄失敗</td></tr>'});
+  }
+  function cProgress(c,total,title){
+    $('cProg').hidden=false;$('cProgT').textContent=title;
+    $('cBar').style.width=(total?Math.round((c.sent+c.failed)/total*100):0)+'%';
+    $('cProgN').textContent='已寄出 '+c.sent+'／'+total+(c.failed?'，失敗 '+c.failed:'')+(c.pending?'，待寄 '+c.pending:'');
+    $('cRetry').hidden=!c.failed;
+  }
+  function cRun(id,total){
+    cJob={id:id,total:total};$('cResume').hidden=true;$('cRetry').hidden=true;
+    cProgress({sent:0,failed:0,pending:total},total,'寄送中，請勿關閉這個頁面…');
+    var fails=0;
+    (function step(){
+      RegDB.broadcast({action:'send',id:id}).then(function(c){
+        fails=0;
+        if(c.pending&&!c.paused){cProgress(c,total,'寄送中，請勿關閉這個頁面…');step();return}
+        if(c.pending){
+          cProgress(c,total,c.paused==='daily_limit'?'已達今日寄信上限（約 450 封），請明天按「繼續寄送」':'Gmail 暫時限制寄信，請稍後按「繼續寄送」');
+          $('cResume').hidden=false;
+        }else cProgress(c,total,c.failed?'寄送完成，有部分失敗':'全部寄送完成');
+        loadMail();
+      },function(e){
+        if(++fails<3){setTimeout(step,3000);return}
+        $('cProgT').textContent='寄送中斷：'+e.message;$('cResume').hidden=false;loadMail();
+      });
+    })();
+  }
+  ['batch','mode'].forEach(function(k){$('cForm').elements[k].addEventListener('change',cShowRec)});
+  $('cTest').addEventListener('click',function(){
+    var bad=cCheck();if(bad){cMsg(bad,1);return}
+    var b=this,v=cVals();v.action='test';b.disabled=true;$('cMsg').textContent='';
+    RegDB.broadcast(v).then(function(r){cMsg('測試信已寄到 '+r.to+'，請到信箱確認內容。')},function(e){cMsg(e.message,1)}).then(function(){b.disabled=false});
+  });
+  $('cForm').addEventListener('submit',function(e){
+    e.preventDefault();
+    var bad=cCheck();if(bad){cMsg(bad,1);return}
+    var v=cVals(),n=cRecipients().length;
+    if(!n){cMsg('這個條件沒有任何收件人',1);return}
+    if(!confirm('確定寄出？\n\n課程：'+v.batch+'\n上課方式：'+(v.mode||'全部')+'\n收件人：'+n+' 位\n主旨：'+v.subject+'\n\n寄出後無法收回。'))return;
+    var btn=e.target.querySelector('button[type=submit]');btn.disabled=true;$('cMsg').textContent='';
+    v.action='create';
+    RegDB.broadcast(v).then(function(r){cRun(r.id,r.total)},function(err){cMsg(err.message,1)}).then(function(){btn.disabled=false});
+  });
+  $('cResume').addEventListener('click',function(){if(cJob)cRun(cJob.id,cJob.total)});
+  $('cRetry').addEventListener('click',function(){
+    if(!cJob)return;var j=cJob;
+    RegDB.broadcast({action:'retry',id:j.id}).then(function(){cRun(j.id,j.total)},function(err){alert(err.message)});
+  });
+  $('cBody').addEventListener('click',function(e){
+    var go=e.target.closest('[data-cgo]');
+    if(go){cRun(go.dataset.cgo,+go.dataset.ctotal);return}
+    var f=e.target.closest('[data-cfail]');
+    if(f)RegDB.broadcastFailures(f.dataset.cfail).then(function(l){alert('寄送失敗的收件人：\n\n'+l.map(function(x){return x.email+'：'+(x.error||'')}).join('\n'))});
   });
 
   // 設定：課程報名開關＋管理員
