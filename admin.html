@@ -69,8 +69,9 @@ input,select{font:inherit;font-size:15px;padding:8px 12px;border:1.5px solid var
 .empty{text-align:center;color:var(--muted);padding:28px 0}
 .hint{font-size:13px;color:var(--muted);margin-top:8px}
 td.acts,td.nw{white-space:nowrap}
-button.kpi.kbtn{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;text-align:left;font-weight:400;white-space:normal;cursor:pointer}
-button.kpi.kbtn:hover,button.kpi.kbtn.on{border-color:var(--accent);background:var(--accent-soft)}
+.km{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.km span{font-size:12px;color:var(--muted);background:var(--sunk);border-radius:8px;padding:3px 8px;white-space:nowrap}
+.km span b{display:inline;font-size:15px;color:var(--ink);margin-left:4px}
 .nb{display:inline-block;margin-left:6px;font-size:11px;font-weight:700;color:var(--on-accent);background:var(--accent);border-radius:999px;padding:1px 8px;vertical-align:1px;white-space:nowrap}
 .multi{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px;background:var(--bg)}
 .multi h3{font-size:15px;margin:0 0 6px}
@@ -306,14 +307,12 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
 
   <div class="kpis" id="regKpis">
     <div class="kpi"><span>報名總筆數</span><b id="kTotal">0</b><small>一人報兩門課算兩筆</small></div>
-    <div class="kpi"><span>不重複報名者</span><b id="kPeople">0</b><small>以 Email 或電話辨識同一人</small></div>
-    <button type="button" class="kpi kbtn" id="kMultiBtn" title="只顯示報名 2 堂以上的人"><span>報名 2 堂以上</span><b id="kMulti">0</b><small>點此篩選名單</small></button>
     <div class="kpi"><span>透過推廣連結</span><b id="kRef">0</b></div>
     <div class="kpi"><span>直接報名（無推廣人）</span><b id="kDirect">0</b></div>
-    <div class="kpi"><span>生成式AI多媒體</span><b id="kB1">0</b></div>
-    <div class="kpi"><span>AI個人化促銷</span><b id="kB2">0</b></div>
-    <div class="kpi"><span>AI客服</span><b id="kB3">0</b></div>
-    <div class="kpi"><span>AI創意素材</span><b id="kB4">0</b></div>
+    <div class="kpi"><span>生成式AI多媒體</span><b id="kB1">0</b><div class="km" id="kB1m"></div></div>
+    <div class="kpi"><span>AI個人化促銷</span><b id="kB2">0</b><div class="km" id="kB2m"></div></div>
+    <div class="kpi"><span>AI客服</span><b id="kB3">0</b><div class="km" id="kB3m"></div></div>
+    <div class="kpi"><span>AI創意素材</span><b id="kB4">0</b><div class="km" id="kB4m"></div></div>
   </div>
 
   <div class="viewbar" id="viewBar" role="status" hidden>
@@ -920,7 +919,6 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
   function shortName(b){return SHORT[b]||b||'—'}
   function renderMulti(){
     var list=Object.keys(people).map(function(k){return people[k]}),multi=list.filter(function(g){return g.batches.length>1});
-    $('kPeople').textContent=list.length;$('kMulti').textContent=multi.length;
     var combos={};
     multi.forEach(function(g){(combos[g.combo]=combos[g.combo]||[]).push(g)});
     var keys=Object.keys(combos).sort(function(a,b){return combos[b].length-combos[a].length||a.localeCompare(b)});
@@ -934,7 +932,13 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
     groupPeople();renderMulti();
     var withRef=regs.filter(function(r){return r.ref});
     $('kTotal').textContent=regs.length;$('kRef').textContent=withRef.length;$('kDirect').textContent=regs.length-withRef.length;
-    $('kB1').textContent=regs.filter(function(r){return r.batch==='生成式AI多媒體轉化與創作'}).length;$('kB2').textContent=regs.filter(function(r){return r.batch==='AI驅動個人化促銷'}).length;$('kB3').textContent=regs.filter(function(r){return r.batch==='AI客服工具操作與回應管理'}).length;$('kB4').textContent=regs.filter(function(r){return r.batch==='AI創意行銷素材生成'}).length;
+    // 每門課的報名人數，再分實體／線上
+    ORDER.forEach(function(b,i){
+      var l=regs.filter(function(r){return r.batch===b});
+      var on=l.filter(function(r){return r.mode==='線上'}).length;
+      $('kB'+(i+1)).textContent=l.length;
+      $('kB'+(i+1)+'m').innerHTML='<span>實體<b>'+(l.length-on)+'</b></span><span>線上<b>'+on+'</b></span>';
+    });
 
     // 推廣人彙總：已登記的 + 名單中出現但未登記的代碼 + 直接報名
     var codes=proms.map(function(p){return p.code});
@@ -1088,10 +1092,9 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
   $('fM').addEventListener('change',renderList);
   function setMulti(v,combo){
     $('fN').value=v;$('fCombo').value=combo||'';
-    $('kMultiBtn').classList.toggle('on',v==='multi');renderMulti();renderList();
+    renderMulti();renderList();
   }
   $('fN').addEventListener('change',function(){setMulti($('fN').value,'')});
-  $('kMultiBtn').addEventListener('click',function(){setMulti($('fN').value==='multi'&&!$('fCombo').value?'*':'multi','');tab('r')});
   $('comboBody').addEventListener('click',function(e){
     var tr=e.target.closest('tr[data-combo]');if(!tr)return;
     var k=tr.dataset.combo;setMulti('multi',$('fCombo').value===k?'':k);
