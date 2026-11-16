@@ -133,6 +133,16 @@ window.RegDB = (function () {
     promoters: function () { return client().from('promoters').select('code,name,email').order('created_at').then(ok) },
     savePromoter: function (p) { return client().from('promoters').upsert({ code: p.code, name: p.name }).then(ok) },
     removePromoter: function (code) { return client().from('promoters').delete().eq('code', code).then(ok) },
+    // 管理員：報名者備註（空字串存成 null）
+    setNote: function (id, note) {
+      return client().from('registrations').update({ note: note || null }).eq('id', id).select('id,note').then(function (res) {
+        if (res.error && /note/.test(res.error.message || '')) throw new Error('資料庫尚未加入備註欄位，請先執行 supabase/migrations/20261116_registration_note.sql');
+        return ok(res);
+      }).then(function (rows) {
+        if (!rows || !rows.length) throw new Error('儲存失敗：沒有權限或資料已被刪除');
+        return rows[0];
+      });
+    },
 
     // 管理員：名單可直接讀；新增／移除經由 manage-admins 函式（需要伺服器端權限）
     admins: function () { return client().from('admins').select('email,created_at,notify').order('created_at').then(ok) },

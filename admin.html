@@ -69,6 +69,15 @@ input,select{font:inherit;font-size:15px;padding:8px 12px;border:1.5px solid var
 .empty{text-align:center;color:var(--muted);padding:28px 0}
 .hint{font-size:13px;color:var(--muted);margin-top:8px}
 td.acts,td.nw{white-space:nowrap}
+button.kpi.kbtn{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;text-align:left;font-weight:400;white-space:normal;cursor:pointer}
+button.kpi.kbtn:hover,button.kpi.kbtn.on{border-color:var(--accent);background:var(--accent-soft)}
+.nb{display:inline-block;margin-left:6px;font-size:11px;font-weight:700;color:var(--on-accent);background:var(--accent);border-radius:999px;padding:1px 8px;vertical-align:1px;white-space:nowrap}
+.multi{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px;background:var(--bg)}
+.multi h3{font-size:15px;margin:0 0 6px}
+td.note{min-width:140px;max-width:260px}
+td.cbt{min-width:9em}
+td.note .nt{white-space:pre-wrap;word-break:break-word;margin-bottom:4px}
+td.note .nt:empty{display:none}
 .login{min-height:100vh;display:grid;place-items:center;padding:24px 16px}
 .login .card{width:min(400px,100%);display:grid;gap:14px;margin:0;padding:28px}
 .login h1{font-size:22px}
@@ -296,7 +305,9 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
   </header>
 
   <div class="kpis" id="regKpis">
-    <div class="kpi"><span>報名總人數</span><b id="kTotal">0</b></div>
+    <div class="kpi"><span>報名總筆數</span><b id="kTotal">0</b><small>一人報兩門課算兩筆</small></div>
+    <div class="kpi"><span>不重複報名者</span><b id="kPeople">0</b><small>以 Email 或電話辨識同一人</small></div>
+    <button type="button" class="kpi kbtn" id="kMultiBtn" title="只顯示報名 2 堂以上的人"><span>報名 2 堂以上</span><b id="kMulti">0</b><small>點此篩選名單</small></button>
     <div class="kpi"><span>透過推廣連結</span><b id="kRef">0</b></div>
     <div class="kpi"><span>直接報名（無推廣人）</span><b id="kDirect">0</b></div>
     <div class="kpi"><span>生成式AI多媒體</span><b id="kB1">0</b></div>
@@ -348,12 +359,22 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
         <input type="hidden" id="fRef" value="*"><button type="button" class="chip" id="fChip" hidden></button>
         <select id="fB" aria-label="依課程篩選"><option value="*">全部課程</option><option>生成式AI多媒體轉化與創作</option><option>AI驅動個人化促銷</option><option>AI客服工具操作與回應管理</option><option>AI創意行銷素材生成</option></select>
         <select id="fM" aria-label="依上課方式篩選"><option value="*">全部上課方式</option><option>實體</option><option>線上</option></select>
-        <input id="fQ" type="search" placeholder="搜尋姓名、電話、Email" aria-label="搜尋">
+        <select id="fN" aria-label="依報名堂數篩選"><option value="*">全部報名者</option><option value="multi">報名 2 堂以上</option><option value="one">只報名 1 堂</option></select>
+        <input type="hidden" id="fCombo" value="">
+        <input id="fQ" type="search" placeholder="搜尋姓名、電話、Email、備註" aria-label="搜尋">
       </div>
       <button id="csv">匯出 Excel（CSV）</button>
     </div>
+    <div class="multi" id="multiBox" hidden>
+      <h3>報名 2 堂以上的課程組合</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>課程組合</th><th class="r">人數</th><th>報名者</th></tr></thead>
+        <tbody id="comboBody"></tbody>
+      </table></div>
+      <p class="hint">點一列可在下方名單只看這些人。</p>
+    </div>
     <div class="tbl"><table>
-      <thead><tr><th>報名時間</th><th>課程</th><th>上課方式</th><th>姓名</th><th>電話</th><th>Email</th><th>推廣人</th><th></th></tr></thead>
+      <thead><tr><th>報名時間</th><th>課程</th><th>上課方式</th><th>姓名</th><th>電話</th><th>Email</th><th>推廣人</th><th>備註</th><th></th></tr></thead>
       <tbody id="rBody"></tbody>
     </table></div>
   </section>
@@ -492,6 +513,16 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
   <div id="dBody"></div>
 </dialog>
 
+<dialog id="ntDlg" aria-labelledby="ntTitle">
+  <div class="dh"><h2 id="ntTitle">編輯備註</h2><form method="dialog"><button aria-label="關閉">關閉</button></form></div>
+  <form id="ntForm" class="pwf">
+    <p>報名者：<b id="ntWho"></b></p>
+    <label>備註（最多 500 字，只有管理員看得到）<textarea name="note" rows="5" maxlength="500" placeholder="例：已電話聯絡，確定參加實體課"></textarea></label>
+    <p class="msg" id="ntMsg" role="status"></p>
+    <button class="pri big" type="submit">儲存備註</button>
+  </form>
+</dialog>
+
 <dialog id="rsDlg" aria-labelledby="rsTitle">
   <div class="dh"><h2 id="rsTitle">重設管理員密碼</h2><form method="dialog"><button aria-label="關閉">關閉</button></form></div>
   <form id="rsForm" class="pwf">
@@ -538,7 +569,7 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
 </dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="assets/regdb.js?v=4"></script>
+<script src="assets/regdb.js?v=5"></script>
 <script>
 (function(){
   var SITE=location.href.replace(/admin\.html.*$/,'').replace(/[?#].*$/,'');
@@ -851,7 +882,46 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
     },function(err){m.classList.add('bad');m.textContent=err.message}).then(function(){btn.disabled=false});
   });
 
+  // 同一人：Email（不分大小寫）或電話相同就算同一人，彙整每人報了哪些課
+  var SHORT={'生成式AI多媒體轉化與創作':'課程一 生成式AI多媒體','AI驅動個人化促銷':'課程二 AI個人化促銷','AI客服工具操作與回應管理':'課程三 AI客服','AI創意行銷素材生成':'課程四 AI創意素材'};
+  var ORDER=['生成式AI多媒體轉化與創作','AI驅動個人化促銷','AI客服工具操作與回應管理','AI創意行銷素材生成'];
+  var people={};
+  function groupPeople(){
+    var parent={};
+    function find(x){while(parent[x]!==x){parent[x]=parent[parent[x]];x=parent[x]}return x}
+    function join(a,b){a=find(a);b=find(b);if(a!==b)parent[b]=a}
+    regs.forEach(function(r){
+      var e='e:'+String(r.email||'').trim().toLowerCase(),p='p:'+String(r.phone||'');
+      if(!(e in parent))parent[e]=e;if(!(p in parent))parent[p]=p;
+      join(e,p);r._k=e;
+    });
+    people={};
+    regs.forEach(function(r){
+      var id=find(r._k);r._pid=id;
+      (people[id]=people[id]||{id:id,regs:[],batches:[]}).regs.push(r);
+      if(people[id].batches.indexOf(r.batch)<0)people[id].batches.push(r.batch);
+    });
+    Object.keys(people).forEach(function(id){
+      var g=people[id];g.batches.sort(function(a,b){return ORDER.indexOf(a)-ORDER.indexOf(b)});g.combo=g.batches.join('＋');
+      g.regs.forEach(function(r){r._n=g.batches.length});
+    });
+  }
+  function personOf(r){return people[r._pid]||{regs:[r],batches:[r.batch],combo:r.batch}}
+  function shortName(b){return SHORT[b]||b||'—'}
+  function renderMulti(){
+    var list=Object.keys(people).map(function(k){return people[k]}),multi=list.filter(function(g){return g.batches.length>1});
+    $('kPeople').textContent=list.length;$('kMulti').textContent=multi.length;
+    var combos={};
+    multi.forEach(function(g){(combos[g.combo]=combos[g.combo]||[]).push(g)});
+    var keys=Object.keys(combos).sort(function(a,b){return combos[b].length-combos[a].length||a.localeCompare(b)});
+    $('multiBox').hidden=!keys.length;
+    var cur=$('fCombo').value;
+    $('comboBody').innerHTML=keys.map(function(k){
+      return '<tr class="click'+(cur===k?' sel':'')+'" data-combo="'+esc(k)+'"><td>'+k.split('＋').map(function(b){return esc(shortName(b))}).join('<br>')+'</td><td class="n">'+combos[k].length+'</td><td class="names">'+combos[k].map(function(g){return esc(g.regs[0].name)}).join('、')+'</td></tr>';
+    }).join('');
+  }
   function render(){
+    groupPeople();renderMulti();
     var withRef=regs.filter(function(r){return r.ref});
     $('kTotal').textContent=regs.length;$('kRef').textContent=withRef.length;$('kDirect').textContent=regs.length-withRef.length;
     $('kB1').textContent=regs.filter(function(r){return r.batch==='生成式AI多媒體轉化與創作'}).length;$('kB2').textContent=regs.filter(function(r){return r.batch==='AI驅動個人化促銷'}).length;$('kB3').textContent=regs.filter(function(r){return r.batch==='AI客服工具操作與回應管理'}).length;$('kB4').textContent=regs.filter(function(r){return r.batch==='AI創意行銷素材生成'}).length;
@@ -892,22 +962,34 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
   }
 
   function filtered(){
-    var c=$('fRef').value,bt=$('fB').value,q=$('fQ').value.trim().toLowerCase();
-    return regs.filter(function(r){
+    var c=$('fRef').value,bt=$('fB').value,q=$('fQ').value.trim().toLowerCase(),fn=$('fN').value,cb=$('fCombo').value;
+    var l=regs.filter(function(r){
+      if(fn==='multi'&&!(r._n>1))return false;
+      if(fn==='one'&&r._n>1)return false;
+      if(cb&&personOf(r).combo!==cb)return false;
       if(c!=='*'&&(r.ref||'')!==c)return false;
       if(bt!=='*'&&r.batch!==bt)return false;
       if($('fM').value!=='*'&&r.mode!==$('fM').value)return false;
-      if(q&&[r.name,r.phone,r.email].join(' ').toLowerCase().indexOf(q)<0)return false;
+      if(q&&[r.name,r.phone,r.email,r.note||''].join(' ').toLowerCase().indexOf(q)<0)return false;
       return true;
     });
+    // 只看多堂報名者時，同一人的資料排在一起（依此人最近一次報名時間）
+    if(fn==='multi'||cb){
+      var last={};
+      l.forEach(function(r){if(!last[r._pid]||r.created_at>last[r._pid])last[r._pid]=r.created_at});
+      l=l.slice().sort(function(a,b){
+        return a._pid===b._pid?ORDER.indexOf(a.batch)-ORDER.indexOf(b.batch):(last[a._pid]<last[b._pid]?1:last[a._pid]>last[b._pid]?-1:a._pid<b._pid?-1:1);
+      });
+    }
+    return l;
   }
   function renderList(){
     var l=filtered();
     $('rCnt').textContent=l.length;
     $('rBody').innerHTML=l.length?l.map(function(r){
-      return '<tr><td class="num">'+fmt(r.created_at)+'</td><td>'+esc(r.batch||'—')+'</td><td>'+esc(r.mode||'—')+'</td><td><b>'+esc(r.name)+'</b></td><td class="num">'+esc(r.phone)+'</td><td>'+esc(r.email)+'</td>'+
-        '<td>'+esc(pname(r.ref))+'</td><td class="acts"><button type="button" data-view="'+esc(r.id)+'">詳細</button> <button type="button" class="del" data-del="'+esc(r.id)+'">刪除</button></td></tr>';
-    }).join(''):'<tr><td colspan="8" class="empty">目前沒有報名資料</td></tr>';
+      return '<tr><td class="num">'+fmt(r.created_at)+'</td><td class="cbt">'+esc(r.batch||'—')+'</td><td>'+esc(r.mode||'—')+'</td><td><b>'+esc(r.name)+'</b>'+(r._n>1?'<span class="nb" title="'+esc(personOf(r).batches.map(shortName).join('、'))+'">共 '+r._n+' 堂</span>':'')+'</td><td class="num">'+esc(r.phone)+'</td><td>'+esc(r.email)+'</td>'+
+        '<td>'+esc(pname(r.ref))+'</td><td class="note"><div class="nt">'+esc(r.note||'')+'</div><button type="button" data-note="'+esc(r.id)+'">'+(r.note?'編輯':'新增備註')+'</button></td><td class="acts"><button type="button" data-view="'+esc(r.id)+'">詳細</button> <button type="button" class="del" data-del="'+esc(r.id)+'">刪除</button></td></tr>';
+    }).join(''):'<tr><td colspan="9" class="empty">目前沒有報名資料</td></tr>';
     var c=$('fRef').value,chip=$('fChip');
     chip.hidden=c==='*';chip.textContent='只顯示：'+pname(c)+' ✕';chip.setAttribute('aria-label','清除推廣人篩選（目前：'+pname(c)+'）');
     document.querySelectorAll('#pBody tr').forEach(function(tr){tr.classList.toggle('sel',tr.dataset.code===c)});
@@ -944,20 +1026,46 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
     $('fRef').value=tr.dataset.code;$('fQ').value='';renderList();tab('r');
   });
   function view(r){
-    var rows=[['報名時間',fmt(r.created_at)],['報名課程',r.batch||'—'],['上課方式',r.mode||'—'],['姓名',r.name],['Email',r.email],['電話',r.phone],['推廣人',pname(r.ref)+(r.ref?'（'+r.ref+'）':'')]];
+    var rows=[['報名時間',fmt(r.created_at)],['報名課程',r.batch||'—'],['上課方式',r.mode||'—'],['姓名',r.name],['Email',r.email],['電話',r.phone],['推廣人',pname(r.ref)+(r.ref?'（'+r.ref+'）':'')],['備註',r.note||'—'],
+      ['此人報名的課程',personOf(r).batches.map(shortName).join('、')+'（共 '+personOf(r).batches.length+' 堂）']];
     $('dBody').innerHTML='<dl>'+rows.map(function(x){return '<dt>'+x[0]+'</dt><dd>'+esc(x[1])+'</dd>'}).join('')+'</dl>';
     if(!$('dlg').open)$('dlg').showModal();
   }
   $('rBody').addEventListener('click',function(e){
     var v=e.target.closest('[data-view]');
     if(v){view(regs.find(function(r){return r.id===v.dataset.view}));return}
+    var n=e.target.closest('[data-note]');
+    if(n){
+      var nr=regs.find(function(r){return r.id===n.dataset.note});if(!nr)return;
+      var nf=$('ntForm');nf.dataset.id=nr.id;nf.elements.note.value=nr.note||'';$('ntMsg').className='msg';$('ntMsg').textContent='';$('ntWho').textContent=nr.name+'（'+(nr.batch||'—')+'）';
+      $('ntDlg').showModal();nf.elements.note.focus();return;
+    }
     var b=e.target.closest('[data-del]');if(!b)return;
     if(!confirm('確定刪除這筆報名資料？刪除後無法復原。'))return;
     RegDB.remove(b.dataset.del).then(load,function(){alert('刪除失敗，請稍後再試。')});
   });
+  $('ntForm').addEventListener('submit',function(e){
+    e.preventDefault();
+    var f=e.target,m=$('ntMsg'),btn=f.querySelector('button'),id=f.dataset.id,val=f.elements.note.value.trim();
+    m.className='msg';m.textContent='';btn.disabled=true;
+    RegDB.setNote(id,val).then(function(row){
+      var r=regs.find(function(x){return x.id===id});if(r)r.note=row.note;
+      renderList();$('ntDlg').close();
+    },function(err){m.classList.add('bad');m.textContent=err.message||'儲存失敗，請稍後再試'}).then(function(){btn.disabled=false});
+  });
   $('fChip').addEventListener('click',function(){$('fRef').value='*';renderList()});
   $('fB').addEventListener('change',renderList);
   $('fM').addEventListener('change',renderList);
+  function setMulti(v,combo){
+    $('fN').value=v;$('fCombo').value=combo||'';
+    $('kMultiBtn').classList.toggle('on',v==='multi');renderMulti();renderList();
+  }
+  $('fN').addEventListener('change',function(){setMulti($('fN').value,'')});
+  $('kMultiBtn').addEventListener('click',function(){setMulti($('fN').value==='multi'&&!$('fCombo').value?'*':'multi','');tab('r')});
+  $('comboBody').addEventListener('click',function(e){
+    var tr=e.target.closest('tr[data-combo]');if(!tr)return;
+    var k=tr.dataset.combo;setMulti('multi',$('fCombo').value===k?'':k);
+  });
   $('fQ').addEventListener('input',renderList);
   $('pForm').addEventListener('submit',function(e){
     e.preventDefault();
@@ -981,8 +1089,8 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
     },function(err){m.classList.add('bad');m.textContent=err.message}).then(function(){btn.disabled=false});
   });
   $('csv').addEventListener('click',function(){
-    var head=['報名時間','報名課程','上課方式','姓名','Email','電話','推廣人','推廣代碼'];
-    var lines=[head].concat(filtered().map(function(r){return [fmt(r.created_at),r.batch||'',r.mode||'',r.name,r.email,r.phone,pname(r.ref),r.ref||'']}));
+    var head=['報名時間','報名課程','上課方式','姓名','Email','電話','推廣人','推廣代碼','備註','此人報名堂數','此人報名的課程'];
+    var lines=[head].concat(filtered().map(function(r){return [fmt(r.created_at),r.batch||'',r.mode||'',r.name,r.email,r.phone,pname(r.ref),r.ref||'',r.note||'',personOf(r).batches.length,personOf(r).batches.join('、')]}));
     var csv='﻿'+lines.map(function(row){return row.map(function(v){v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')}).join('\r\n');
     var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='報名名單.csv';a.click();
   });

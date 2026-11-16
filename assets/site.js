@@ -88,9 +88,9 @@
   f.addEventListener('submit',function(e){
     e.preventDefault();
     var phone=val('phone').replace(/[\s()-]/g,'');
-    var batch=f.querySelector('[name=batch]:checked'),mode=f.querySelector('[name=mode]:checked');
+    var batches=[].map.call(f.querySelectorAll('[name=batch]:checked'),function(x){return x.value}),mode=f.querySelector('[name=mode]:checked');
     var checks=[
-      err('batch',batch?'':'請選擇有興趣的課程'),
+      err('batch',batches.length?'':'請選擇有興趣的課程（可複選）'),
       err('mode',mode?'':'請選擇上課方式'),
       err('name',val('name')?'':'請填寫姓名'),
       err('email',/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val('email'))?'':'Email 格式不正確'),
@@ -105,29 +105,55 @@
 
     var btn=f.querySelector('button[type=submit]');btn.disabled=true;btn.textContent='送出中…';
     var old=document.getElementById('dupMsg');if(old)old.remove();
-    // 同一門課，相同 Email 或電話已填過：提醒不需重複填寫
-    function showDup(d){
+    function names(l){return l.map(function(b){return '「'+b+'」'}).join('、')}
+    // 所選課程都已用相同 Email 或電話填過：提醒不需重複填寫
+    function showDup(d,list){
       btn.disabled=false;btn.textContent='送出意願';
-      if(d.email)err('email','這個 Email 已經填過這門課了');
-      if(d.phone)err('phone','這支電話已經填過這門課了');
+      var one=list.length===1;
+      if(d.email)err('email','這個 Email 已經填過'+(one?'這門課':'所選的課程')+'了');
+      if(d.phone)err('phone','這支電話已經填過'+(one?'這門課':'所選的課程')+'了');
       var box=document.createElement('div');box.id='dupMsg';box.className='dup';box.setAttribute('role','alert');
-      box.innerHTML='<b>您已經填過這門課了，不需要重複填寫</b><p>系統查到相同的'+(d.email&&d.phone?' Email 與電話 ':d.email?' Email ':d.phone?'電話':' Email 或電話 ')+'已有這門課的意願紀錄。經濟部公告課程後，將會通知您前往報名網站進行報名（找不到信請看垃圾郵件匣）。</p><p>如需更改資料，或確認不是您本人填寫，請洽朱小姐：02-2332-8558 #355。</p>';
+      box.innerHTML='<b>您已經填過'+(one?'這門課':'所選的課程')+'了，不需要重複填寫</b><p>系統查到相同的'+(d.email&&d.phone?' Email 與電話 ':d.email?' Email ':d.phone?'電話':' Email 或電話 ')+'已有'+esc(names(list))+'的意願紀錄。經濟部公告課程後，將會通知您前往報名網站進行報名（找不到信請看垃圾郵件匣）。</p><p>如需更改資料，或確認不是您本人填寫，請洽朱小姐：02-2332-8558 #355。</p>';
       btn.parentNode.insertBefore(box,btn);
       box.scrollIntoView({behavior:'smooth',block:'center'});
     }
-    function submit(){
-      RegDB.add({batch:batch.value,mode:mode.value,name:val('name'),email:val('email'),phone:phone,ref:f.ref.value}).then(function(){
-        document.getElementById('regCard').innerHTML='<div class="done"><span class="ok-ic" aria-hidden="true">✓</span><h3>感謝您的填寫！</h3><p>我們已收到您的資料。<b>目前尚未完成報名</b>，等經濟部公告課程後，將會通知您前往報名網站進行報名。</p><p>還想填其他課程？<a href="index.html#apply" onclick="location.reload()">再填一門</a></p><p class="mail-tip"><b>📧 確認信已寄到您填寫的 Email</b>若幾分鐘內沒有收到，請到信箱的「垃圾郵件」或「促銷內容」資料夾找找看，並將寄件者設為「非垃圾郵件」，以免錯過報名通知。</p></div>';
-        document.getElementById('apply').scrollIntoView({behavior:'smooth'});
-      },function(e){
-        if(e&&e.message==='DUPLICATE'){showDup({});return}
+    function done(ok,skip){
+      document.getElementById('regCard').innerHTML='<div class="done"><span class="ok-ic" aria-hidden="true">✓</span><h3>感謝您的填寫！</h3><p>我們已收到您對'+esc(names(ok))+'的意願。<b>目前尚未完成報名</b>，等經濟部公告課程後，將會通知您前往報名網站進行報名。</p>'+
+        (skip.length?'<p>'+esc(names(skip))+'您先前已經填過，這次不重複登記。</p>':'')+
+        '<p>還想填其他課程？<a href="index.html#apply" onclick="location.reload()">再填一次</a></p><p class="mail-tip"><b>📧 確認信已寄到您填寫的 Email</b>'+(ok.length>1?'每門課各一封，':'')+'若幾分鐘內沒有收到，請到信箱的「垃圾郵件」或「促銷內容」資料夾找找看，並將寄件者設為「非垃圾郵件」，以免錯過報名通知。</p></div>';
+      document.getElementById('apply').scrollIntoView({behavior:'smooth'});
+    }
+    // 逐門課送出（一門課一筆資料），已填過的課程略過
+    function submit(todo,skip,dupInfo){
+      var ok=[],failed=[];
+      todo.reduce(function(p,b){
+        return p.then(function(){
+          return RegDB.add({batch:b,mode:mode.value,name:val('name'),email:val('email'),phone:phone,ref:f.ref.value}).then(function(){ok.push(b)},function(e){
+            if(e&&e.message==='DUPLICATE')skip.push(b);else failed.push(b);
+          });
+        });
+      },Promise.resolve()).then(function(){
+        if(ok.length){
+          done(ok,skip);
+          if(failed.length)alert(names(failed)+'送出失敗，可能剛額滿關閉，請重新整理頁面確認；或來電 02-2332-8558 #355 洽詢朱小姐。');
+          return;
+        }
+        if(skip.length&&!failed.length){showDup(dupInfo||{},skip);return}
         btn.disabled=false;btn.textContent='送出意願';
         alert('送出失敗：所選課程可能剛額滿關閉，請重新整理頁面確認；或來電 02-2332-8558 #355 洽詢朱小姐。');
       });
     }
-    RegDB.checkRegistered(val('email'),phone,batch.value).then(function(d){return d},function(){return {}}).then(function(d){
-      if(d&&(d.email||d.phone)){showDup(d);return}
-      submit();
+    Promise.all(batches.map(function(b){
+      return RegDB.checkRegistered(val('email'),phone,b).then(function(d){return d||{}},function(){return {}});
+    })).then(function(res){
+      var todo=[],skip=[],info={};
+      res.forEach(function(d,i){
+        if(d.email||d.phone){skip.push(batches[i]);info.email=info.email||d.email;info.phone=info.phone||d.phone}
+        else todo.push(batches[i]);
+      });
+      if(!todo.length){showDup(info,skip);return}
+      submit(todo,skip,info);
     });
   });
+  function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 })();
