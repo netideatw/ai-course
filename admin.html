@@ -326,6 +326,7 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
     <button type="button" role="tab" id="tab-a" aria-controls="panel-a" aria-selected="false" tabindex="-1">數據分析</button>
     <button type="button" role="tab" id="tab-m" aria-controls="panel-m" aria-selected="false" tabindex="-1" hidden>我介紹的報名者 <span class="cnt" id="mCnt">0</span></button>
     <button type="button" role="tab" id="tab-c" aria-controls="panel-c" aria-selected="false" tabindex="-1">寄通知信</button>
+    <button type="button" role="tab" id="tab-t" aria-controls="panel-t" aria-selected="false" tabindex="-1">垃圾桶 <span class="cnt" id="tCnt">0</span></button>
     <button type="button" role="tab" id="tab-s" aria-controls="panel-s" aria-selected="false" tabindex="-1">設定</button>
   </div>
 
@@ -478,6 +479,15 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
     </table></div>
   </section>
 
+  <section class="card panel" id="panel-t" role="tabpanel" aria-labelledby="tab-t" hidden>
+    <h2>垃圾桶</h2>
+    <p class="hint" style="margin:-6px 0 14px">在「報名名單」刪除的資料會先放在這裡，不會算在名單、統計、寄通知信與推廣人成效中。按「還原」會放回報名名單（保留原報名時間，不會重寄確認信）；「永久刪除」後就無法找回。</p>
+    <div class="tbl"><table>
+      <thead><tr><th>刪除時間</th><th>報名時間</th><th>課程</th><th>上課方式</th><th>姓名</th><th>電話</th><th>Email</th><th>推廣人</th><th>備註</th><th>刪除者</th><th></th></tr></thead>
+      <tbody id="tBody"></tbody>
+    </table></div>
+  </section>
+
   <section class="card panel" id="panel-s" role="tabpanel" aria-labelledby="tab-s" hidden>
     <div id="adminSet">
     <h2>課程報名</h2>
@@ -569,11 +579,11 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
 </dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="assets/regdb.js?v=5"></script>
+<script src="assets/regdb.js?v=6"></script>
 <script>
 (function(){
   var SITE=location.href.replace(/admin\.html.*$/,'').replace(/[?#].*$/,'');
-  var regs=[],proms=[];
+  var regs=[],proms=[],trash=[];
   var $=function(id){return document.getElementById(id)};
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
   function link(code){return SITE+'?ref='+encodeURIComponent(code)}
@@ -592,7 +602,7 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
   }
   // 切換成推廣者畫面（推廣者登入，或管理員檢視某位推廣者）
   function promoterUI(on,p){
-    ['regKpis','tab-r','tab-p','tab-c','adminSet','byRefBox','aRef'].forEach(function(k){$(k).hidden=on});
+    ['regKpis','tab-r','tab-p','tab-c','tab-t','adminSet','byRefBox','aRef'].forEach(function(k){$(k).hidden=on});
     $('tab-m').hidden=!on;
     $('ttl').textContent=on?'推廣者後台｜'+p.name:'報名後台';
     document.title=(on?'推廣者後台':'報名後台')+'｜次產業培訓班';
@@ -607,7 +617,7 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
     loadMine();tab('a');scrollTo(0,0);
   }
   function exitView(){
-    VIEW=null;promoterUI(false);TABS=['r','p','a','c','s'];
+    VIEW=null;promoterUI(false);TABS=['r','p','a','c','t','s'];
     $('tab-s').hidden=$('pwBtn').hidden=false;$('viewBar').hidden=true;
     tab('p');
   }
@@ -665,14 +675,14 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
   $('logout').addEventListener('click',function(){RegDB.signOut().then(function(){location.reload()})});
 
   // 頁籤
-  var TABS=['r','p','a','c','s'];
+  var TABS=['r','p','a','c','t','s'];
   function tab(which){
-    ['r','p','a','m','c','s'].forEach(function(k){var on=k===which;$('tab-'+k).setAttribute('aria-selected',on);$('tab-'+k).tabIndex=on?0:-1;$('panel-'+k).hidden=!on});
+    ['r','p','a','m','c','t','s'].forEach(function(k){var on=k===which;$('tab-'+k).setAttribute('aria-selected',on);$('tab-'+k).tabIndex=on?0:-1;$('panel-'+k).hidden=!on});
     if(which==='s'&&ROLE&&ROLE.admin)loadSettings();
     if(which==='a')loadStats();
     if(which==='c'&&ROLE&&ROLE.admin)loadMail();
   }
-  ['r','p','a','m','c','s'].forEach(function(k){$('tab-'+k).addEventListener('click',function(){tab(k)})});
+  ['r','p','a','m','c','t','s'].forEach(function(k){$('tab-'+k).addEventListener('click',function(){tab(k)})});
   document.querySelector('.tabs').addEventListener('keydown',function(e){
     if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;
     var cur=TABS.findIndex(function(k){return $('tab-'+k).getAttribute('aria-selected')==='true'});
@@ -846,7 +856,7 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
   });
 
   var apps=[];
-  function load(){Promise.all([RegDB.list(),RegDB.promoters(),RegDB.applications()]).then(function(r){regs=r[0];proms=r[1];apps=r[2];render();renderApps()},function(){alert('資料讀取失敗，請重新整理或重新登入。')})}
+  function load(){Promise.all([RegDB.list(),RegDB.promoters(),RegDB.applications(),RegDB.trash().catch(function(){return []})]).then(function(r){regs=r[0];proms=r[1];apps=r[2];trash=r[3];render();renderApps();renderTrash()},function(){alert('資料讀取失敗，請重新整理或重新登入。')})}
 
   // 推廣者註冊申請（待審核）
   function renderApps(){
@@ -1041,8 +1051,28 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
       $('ntDlg').showModal();nf.elements.note.focus();return;
     }
     var b=e.target.closest('[data-del]');if(!b)return;
-    if(!confirm('確定刪除這筆報名資料？刪除後無法復原。'))return;
-    RegDB.remove(b.dataset.del).then(load,function(){alert('刪除失敗，請稍後再試。')});
+    if(!confirm('把這筆報名資料移到垃圾桶？\n移到垃圾桶後不會算在名單與統計中，可在「垃圾桶」頁籤還原。'))return;
+    RegDB.remove(b.dataset.del).then(load,function(err){alert(err.message||'刪除失敗，請稍後再試。')});
+  });
+  function renderTrash(){
+    $('tCnt').textContent=trash.length;
+    $('tBody').innerHTML=trash.length?trash.map(function(r){
+      return '<tr><td class="num">'+fmt(r.deleted_at)+'</td><td class="num">'+fmt(r.created_at)+'</td><td class="cbt">'+esc(r.batch||'—')+'</td><td>'+esc(r.mode||'—')+'</td><td class="nw"><b>'+esc(r.name)+'</b></td><td class="num">'+esc(r.phone)+'</td><td>'+esc(r.email)+'</td>'+
+        '<td>'+esc(pname(r.ref))+'</td><td class="note"><div class="nt">'+esc(r.note||'')+'</div></td><td>'+esc(r.deleted_by||'—')+'</td>'+
+        '<td class="acts"><button type="button" class="pri" data-restore="'+esc(r.id)+'">還原</button> <button type="button" class="del" data-purge="'+esc(r.id)+'">永久刪除</button></td></tr>';
+    }).join(''):'<tr><td colspan="11" class="empty">垃圾桶是空的</td></tr>';
+  }
+  $('tBody').addEventListener('click',function(e){
+    var b=e.target.closest('[data-restore],[data-purge]');if(!b)return;
+    var id=b.dataset.restore||b.dataset.purge,r=trash.find(function(x){return x.id===id}),who=r?r.name+'（'+r.batch+'）':'';
+    if(b.dataset.restore){
+      b.disabled=true;
+      RegDB.restore(id).then(load,function(err){b.disabled=false;alert(err.message)});
+    }else{
+      if(!confirm('永久刪除「'+who+'」？\n永久刪除後無法找回。'))return;
+      b.disabled=true;
+      RegDB.purge(id).then(load,function(err){b.disabled=false;alert(err.message)});
+    }
   });
   $('ntForm').addEventListener('submit',function(e){
     e.preventDefault();

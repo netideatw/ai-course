@@ -15,6 +15,16 @@ window.RegDB = (function () {
     return sb;
   }
   function ok(res) { if (res.error) throw res.error; return res.data }
+  function trashCall(fn, id) {
+    return client().rpc(fn, { p_id: id }).then(function (res) {
+      var e = res.error;
+      if (!e) return;
+      var m = e.message || '';
+      if (/DUPLICATE_REGISTRATION/.test(m)) throw new Error('無法還原：此人已用相同 Email 或電話重新填寫了同一門課。');
+      if (e.code === 'PGRST202' || /Could not find the function/i.test(m)) throw new Error('資料庫尚未啟用垃圾桶，請先執行 supabase/migrations/20261116_registration_trash.sql');
+      throw new Error('操作失敗：' + m);
+    });
+  }
   // 呼叫函式，失敗時把伺服器的中文錯誤訊息帶出來
   function callAdmins(body, fn) {
     return client().functions.invoke(fn || 'manage-admins', { body: body }).then(function (res) {
@@ -129,7 +139,16 @@ window.RegDB = (function () {
     list: function () {
       return client().from('registrations').select('*').order('created_at', { ascending: false }).then(ok);
     },
-    remove: function (id) { return client().from('registrations').delete().eq('id', id).then(ok) },
+    // 刪除＝移到垃圾桶；垃圾桶可還原或永久刪除（只有管理員）
+    remove: function (id) { return trashCall('trash_registration', id) },
+    trash: function () {
+      return client().from('registrations_trash').select('*').order('deleted_at', { ascending: false }).then(function (res) {
+        if (res.error && /registrations_trash/.test(res.error.message || '')) return [];
+        return ok(res);
+      });
+    },
+    restore: function (id) { return trashCall('restore_registration', id) },
+    purge: function (id) { return trashCall('purge_registration', id) },
     promoters: function () { return client().from('promoters').select('code,name,email').order('created_at').then(ok) },
     savePromoter: function (p) { return client().from('promoters').upsert({ code: p.code, name: p.name }).then(ok) },
     removePromoter: function (code) { return client().from('promoters').delete().eq('code', code).then(ok) },
