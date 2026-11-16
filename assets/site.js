@@ -120,7 +120,7 @@
     function done(ok,skip){
       document.getElementById('regCard').innerHTML='<div class="done"><span class="ok-ic" aria-hidden="true">✓</span><h3>感謝您的填寫！</h3><p>我們已收到您對'+esc(names(ok))+'的意願。<b>目前尚未完成報名</b>，等經濟部公告課程後，將會通知您前往報名網站進行報名。</p>'+
         (skip.length?'<p>'+esc(names(skip))+'您先前已經填過，這次不重複登記。</p>':'')+
-        '<p>還想填其他課程？<a href="index.html#apply" onclick="location.reload()">再填一次</a></p><p class="mail-tip"><b>📧 確認信已寄到您填寫的 Email</b>'+(ok.length>1?'每門課各一封，':'')+'若幾分鐘內沒有收到，請到信箱的「垃圾郵件」或「促銷內容」資料夾找找看，並將寄件者設為「非垃圾郵件」，以免錯過報名通知。</p></div>';
+        '<p>還想填其他課程？<a href="index.html#apply" onclick="location.reload()">再填一次</a></p><p class="mail-tip"><b>📧 確認信已寄到您填寫的 Email</b>'+(ok.length>1?'所有課程合併在同一封信，':'')+'若幾分鐘內沒有收到，請到信箱的「垃圾郵件」或「促銷內容」資料夾找找看，並將寄件者設為「非垃圾郵件」，以免錯過報名通知。</p></div>';
       document.getElementById('apply').scrollIntoView({behavior:'smooth'});
     }
     // 逐門課送出（一門課一筆資料），已填過的課程略過
