@@ -110,8 +110,6 @@
     function showDup(d,list){
       btn.disabled=false;btn.textContent='送出意願';
       var one=list.length===1;
-      if(d.email)err('email','這個 Email 已經填過'+(one?'這門課':'所選的課程')+'了');
-      if(d.phone)err('phone','這支電話已經填過'+(one?'這門課':'所選的課程')+'了');
       var box=document.createElement('div');box.id='dupMsg';box.className='dup';box.setAttribute('role','alert');
       box.innerHTML='<b>您已經填過'+(one?'這門課':'所選的課程')+'了，不需要重複填寫</b><p>系統查到相同的'+(d.email&&d.phone?' Email 與電話 ':d.email?' Email ':d.phone?'電話':' Email 或電話 ')+'已有'+esc(names(list))+'的意願紀錄。經濟部公告課程後，將會通知您前往報名網站進行報名（找不到信請看垃圾郵件匣）。</p><p>如需更改資料，或確認不是您本人填寫，請洽朱小姐：02-2332-8558 #355。</p>';
       btn.parentNode.insertBefore(box,btn);
@@ -143,17 +141,8 @@
         alert('送出失敗：所選課程可能剛額滿關閉，請重新整理頁面確認；或來電 02-2332-8558 #355 洽詢朱小姐。');
       });
     }
-    Promise.all(batches.map(function(b){
-      return RegDB.checkRegistered(val('email'),phone,b).then(function(d){return d||{}},function(){return {}});
-    })).then(function(res){
-      var todo=[],skip=[],info={};
-      res.forEach(function(d,i){
-        if(d.email||d.phone){skip.push(batches[i]);info.email=info.email||d.email;info.phone=info.phone||d.phone}
-        else todo.push(batches[i]);
-      });
-      if(!todo.length){showDup(info,skip);return}
-      submit(todo,skip,info);
-    });
+    // 重複填寫由資料庫在送出時擋下（不提供事先查詢，避免被拿來查別人有沒有報名）
+    submit(batches,[],{});
   });
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 })();

@@ -51,14 +51,6 @@ window.RegDB = (function () {
       });
     },
 
-    // 送出前檢查同一門課的 Email／電話是否已報名過，回傳 { email: bool, phone: bool }
-    checkRegistered: function (email, phone, batch) {
-      return fetch(URL + '/rest/v1/rpc/check_registered', {
-        method: 'POST',
-        headers: { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ p_email: email, p_phone: phone, p_batch: batch })
-      }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json() });
-    },
 
     // 後台寄通知信（只有管理員）
     broadcast: function (body) { return callAdmins(body, 'broadcast') },
