@@ -3,6 +3,8 @@
    Storage 名稱與原課程網站分開：同一個 github.io 網域會共用 localStorage */
 (function(){
   var COURSES={genai:'生成式AI多媒體轉化與創作',promo:'AI驅動個人化促銷',line:'AI客服工具操作與回應管理',creative:'AI創意行銷素材生成'};
+  // 已開放正式報名的課程：填寫意願送出後，直接帶到報名網站
+  var REG_URL={'生成式AI多媒體轉化與創作':'https://www.niea-bizboost.tw/r/JosgKASUkoat'};
   var KEY='tc_ref', DAYS=30, ref='';
   var m=location.search.match(/[?&]ref=([^&#]*)/);
   if(m){
@@ -48,7 +50,8 @@
       list.forEach(function(b){
         if(b.open){openCount++;return}
         var c=document.querySelector('[data-course-card="'+b.name+'"]');
-        if(c)c.querySelector('.full').hidden=false;
+        if(c){c.querySelector('.full').hidden=false;var ob=c.querySelector('[data-open-badge]');if(ob)ob.hidden=true}
+        if(REG_URL[b.name])document.querySelectorAll('.head [data-open-badge]').forEach(function(x){x.hidden=true});
         document.querySelectorAll('[data-pick="'+b.name+'"]').forEach(function(x){x.setAttribute('aria-disabled','true');x.textContent='已額滿'});
         if(!f)return;
         var inp=f.querySelector('[name=batch][value="'+b.name+'"]');if(!inp)return;
@@ -106,6 +109,13 @@
     var btn=f.querySelector('button[type=submit]');btn.disabled=true;btn.textContent='送出中…';
     var old=document.getElementById('dupMsg');if(old)old.remove();
     function names(l){return l.map(function(b){return '「'+b+'」'}).join('、')}
+    // 送出（或已填過）的課程中有已開放報名的：顯示前往報名按鈕，幾秒後自動跳轉
+    function regGo(list){
+      var c=list.filter(function(b){return REG_URL[b]})[0];if(!c)return '';
+      var url=REG_URL[c];
+      setTimeout(function(){location.href=url},4000);
+      return '<div class="reg-go"><p><b>「'+esc(c)+'」已開放報名！</b>4 秒後將自動帶您前往報名網站，請在該網站完成報名，才算取得上課資格。</p><p><a class="btn hot" href="'+esc(url)+'">立即前往報名網站</a></p></div>';
+    }
     // 所選課程都已用相同 Email 或電話填過：提醒不需重複填寫
     function showDup(d,list){
       btn.disabled=false;btn.textContent='送出意願';
@@ -113,10 +123,12 @@
       var box=document.createElement('div');box.id='dupMsg';box.className='dup';box.setAttribute('role','alert');
       box.innerHTML='<b>您已經填過'+(one?'這門課':'所選的課程')+'了，不需要重複填寫</b><p>系統查到相同的'+(d.email&&d.phone?' Email 與電話 ':d.email?' Email ':d.phone?'電話':' Email 或電話 ')+'已有'+esc(names(list))+'的意願紀錄。經濟部公告課程後，將會通知您前往報名網站進行報名（找不到信請看垃圾郵件匣）。</p><p>如需更改資料，或確認不是您本人填寫，請洽朱小姐：02-2332-8558 #355。</p>';
       btn.parentNode.insertBefore(box,btn);
+      var go=regGo(list);if(go)box.insertAdjacentHTML('beforeend',go);
       box.scrollIntoView({behavior:'smooth',block:'center'});
     }
     function done(ok,skip){
-      document.getElementById('regCard').innerHTML='<div class="done"><span class="ok-ic" aria-hidden="true">✓</span><h3>感謝您的填寫！</h3><p>我們已收到您對'+esc(names(ok))+'的意願。<b>目前尚未完成報名</b>，等經濟部公告課程後，將會通知您前往報名網站進行報名。</p>'+
+      var go=regGo(ok.concat(skip)),later=ok.filter(function(b){return !REG_URL[b]});
+      document.getElementById('regCard').innerHTML='<div class="done"><span class="ok-ic" aria-hidden="true">✓</span><h3>感謝您的填寫！</h3><p>我們已收到您對'+esc(names(ok))+'的意願。<b>目前尚未完成報名</b>'+(later.length?'，'+(go?esc(names(later)):'')+'等經濟部公告課程後，將會通知您前往報名網站進行報名':'')+'。</p>'+go+
         (skip.length?'<p>'+esc(names(skip))+'您先前已經填過，這次不重複登記。</p>':'')+
         '<p>還想填其他課程？<a href="index.html#apply" onclick="location.reload()">再填一次</a></p><p class="mail-tip"><b>📧 確認信已寄到您填寫的 Email</b>'+(ok.length>1?'所有課程合併在同一封信，':'')+'若幾分鐘內沒有收到，請到信箱的「垃圾郵件」或「促銷內容」資料夾找找看，並將寄件者設為「非垃圾郵件」，以免錯過報名通知。</p></div>';
       document.getElementById('apply').scrollIntoView({behavior:'smooth'});
