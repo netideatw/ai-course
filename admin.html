@@ -266,10 +266,8 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
   <form class="card" id="signupForm" method="post" action="#" hidden>
     <h1>註冊推廣者帳號</h1>
     <p class="muted">送出後由管理員審核，通過後會寄信通知你，就能用這組 Email 與密碼登入，取得專屬推廣連結並查看成效。</p>
-    <label>姓名或單位名稱<input name="name" maxlength="30" required autocomplete="name"></label>
+    <label>姓名<input name="name" maxlength="30" required autocomplete="name"></label>
     <label>Email（登入帳號）<input name="email" type="email" maxlength="80" required autocomplete="email"></label>
-    <label>聯絡電話<input name="phone" type="tel" maxlength="20" required autocomplete="tel" placeholder="例：0912345678"></label>
-    <label>推廣方式（選填）<textarea name="note" maxlength="300" rows="3" placeholder="例：在系上 LINE 群組、IG 分享課程"></textarea></label>
     <label>密碼（至少 8 碼）<input name="pw" type="password" minlength="8" maxlength="72" required autocomplete="new-password"></label>
     <label>再輸入一次密碼<input name="pw2" type="password" minlength="8" maxlength="72" required autocomplete="new-password"></label>
     <p class="lerr" id="suErr" role="alert"></p>
@@ -333,7 +331,7 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
     <div class="apps" id="appsBox" hidden>
       <h2>待審核的推廣者申請</h2>
       <div class="tbl"><table>
-        <thead><tr><th>申請時間</th><th>姓名／單位</th><th>Email</th><th>電話</th><th>推廣方式</th><th></th></tr></thead>
+        <thead><tr><th>申請時間</th><th>姓名</th><th>Email</th><th></th></tr></thead>
         <tbody id="appBody"></tbody>
       </table></div>
     </div>
@@ -663,11 +661,9 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
   $('signupForm').addEventListener('submit',function(e){
     e.preventDefault();
     var f=e.target,el=f.elements,btn=f.querySelector('button[type=submit]'),er=$('suErr');er.textContent='';
-    var phone=el.phone.value.replace(/[\s()-]/g,'');
-    if(!/^0\d{8,9}$/.test(phone)){er.textContent='請填寫正確的電話號碼，手機為 09 開頭 10 碼';el.phone.focus();return}
     if(el.pw.value!==el.pw2.value){er.textContent='兩次輸入的密碼不一致';el.pw2.focus();return}
     btn.disabled=true;btn.textContent='送出中…';
-    RegDB.signUpPromoter({name:el.name.value.trim(),email:el.email.value.trim(),phone:phone,note:el.note.value.trim(),password:el.pw.value}).then(function(){
+    RegDB.signUpPromoter({name:el.name.value.trim(),email:el.email.value.trim(),password:el.pw.value}).then(function(){
       $('loginForm').elements.email.value=el.email.value.trim();f.reset();show('signupDone');
     },function(err){er.textContent=err.message}).then(function(){btn.disabled=false;btn.textContent='送出註冊申請'});
   });
@@ -862,7 +858,7 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
     var pend=apps.filter(function(a){return a.status==='pending'});
     $('appsBox').hidden=!pend.length;$('appCnt').hidden=!pend.length;$('appCnt').textContent=pend.length;
     $('appBody').innerHTML=pend.map(function(a){
-      return '<tr><td class="num">'+fmt(a.created_at)+'</td><td><b>'+esc(a.name)+'</b></td><td>'+esc(a.email)+'</td><td class="num">'+esc(a.phone)+'</td><td class="note">'+(a.note?esc(a.note):'<span class="muted">—</span>')+'</td>'+
+      return '<tr><td class="num">'+fmt(a.created_at)+'</td><td><b>'+esc(a.name)+'</b></td><td>'+esc(a.email)+'</td>'+
         '<td class="acts"><button type="button" class="pri" data-approve="'+esc(a.id)+'">核准</button> <button type="button" class="del" data-reject="'+esc(a.id)+'">拒絕</button></td></tr>';
     }).join('');
   }
