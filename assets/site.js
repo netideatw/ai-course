@@ -23,7 +23,15 @@
   else if(document.referrer){try{var rh=new URL(document.referrer).hostname;if(rh!==location.hostname)src=rh.replace(/^www\./,'')}catch(e){}}
   var sw=Math.min(screen.width,screen.height),touch=matchMedia('(pointer:coarse)').matches;
   var device=touch&&sw<600?'mobile':touch&&sw<=1100?'tablet':'desktop';
-  function track(type,target){if(window.RegDB)RegDB.track({type:type,vid:vid,ref:ref,target:target?String(target).slice(0,40):null,src:src.slice(0,60),device:device})}
+  // 頁面代號：index＝首頁，其餘為課程頁（course-genai.html → genai）
+  var pm=location.pathname.match(/course-(\w+)\.html$/),PAGE=pm&&COURSES[pm[1]]?pm[1]:'index';
+  // 報名來源頁：記住最後看過的課程頁 30 天，填表時一併送出；沒看過課程頁就算首頁
+  var fromPage='index';
+  try{
+    if(PAGE!=='index')localStorage.setItem('tc_page',JSON.stringify({p:PAGE,t:Date.now()}));
+    var lp=JSON.parse(localStorage.getItem('tc_page')||'null');if(lp&&COURSES[lp.p]&&Date.now()-lp.t<DAYS*864e5)fromPage=lp.p;
+  }catch(e){if(PAGE!=='index')fromPage=PAGE}
+  function track(type,target){if(window.RegDB)RegDB.track({type:type,vid:vid,ref:ref,page:PAGE,target:target?String(target).slice(0,40):null,src:src.slice(0,60),device:device})}
   var WHERE={top:'首屏',course:'課程頁',notes:'注意事項',contact:'頁尾',apply:'表單'};
   function clickName(el){
     if(el.matches('button[type=submit]'))return '送出意願';
@@ -144,7 +152,7 @@
       var ok=[],failed=[];
       todo.reduce(function(p,b){
         return p.then(function(){
-          return RegDB.add({batch:b,mode:mode.value,name:val('name'),email:val('email'),phone:phone,ref:f.ref.value}).then(function(){ok.push(b)},function(e){
+          return RegDB.add({batch:b,mode:mode.value,name:val('name'),email:val('email'),phone:phone,ref:f.ref.value,page:fromPage}).then(function(){ok.push(b)},function(e){
             if(e&&e.message==='DUPLICATE')skip.push(b);else failed.push(b);
           });
         });

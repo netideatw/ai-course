@@ -40,14 +40,27 @@ window.RegDB = (function () {
     mode: 'live',
 
     add: function (rec) {
-      var row = { batch: rec.batch, mode: rec.mode, name: rec.name, email: rec.email, phone: rec.phone, ref: rec.ref || null };
-      return fetch(URL + '/rest/v1/registrations', {
-        method: 'POST',
-        headers: { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify(row)
-      }).then(function (r) {
+      var row = { batch: rec.batch, mode: rec.mode, name: rec.name, email: rec.email, phone: rec.phone, ref: rec.ref || null, page: rec.page || null };
+      function post(body) {
+        return fetch(URL + '/rest/v1/registrations', {
+          method: 'POST',
+          headers: { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify(body)
+        });
+      }
+      return post(row).then(function (r) {
         if (r.ok) return;
-        return r.text().then(function (t) { throw new Error(/DUPLICATE_REGISTRATION/.test(t) ? 'DUPLICATE' : 'HTTP ' + r.status) });
+        return r.text().then(function (t) {
+          // 資料庫尚未加上來源頁欄位（或沒有權限）時，不帶來源頁再送一次，報名不受影響
+          if (/\bpage\b/.test(t) && !/DUPLICATE_REGISTRATION/.test(t)) {
+            delete row.page;
+            return post(row).then(function (r2) {
+              if (r2.ok) return;
+              return r2.text().then(function (t2) { throw new Error(/DUPLICATE_REGISTRATION/.test(t2) ? 'DUPLICATE' : 'HTTP ' + r2.status) });
+            });
+          }
+          throw new Error(/DUPLICATE_REGISTRATION/.test(t) ? 'DUPLICATE' : 'HTTP ' + r.status);
+        });
       });
     },
 
@@ -190,9 +203,13 @@ window.RegDB = (function () {
     stats: function (from, to, ref) {
       return client().rpc('site_stats', { p_from: from, p_to: to, p_ref: ref == null ? null : ref }).then(ok);
     },
+    // 各頁面成效（首頁與四個課程頁）；資料庫尚未啟用時回傳 null
+    pageStats: function (from, to, ref) {
+      return client().rpc('page_stats', { p_from: from, p_to: to, p_ref: ref == null ? null : ref }).then(function (res) { return res.error ? null : res.data });
+    },
     // 網頁瀏覽／點擊事件（不等結果；keepalive 讓離開頁面時也能送出）
     track: function (ev) {
-      var row = { type: ev.type, vid: ev.vid || null, ref: ev.ref || null, target: ev.target || null, src: ev.src || null, device: ev.device || null };
+      var row = { type: ev.type, vid: ev.vid || null, ref: ev.ref || null, page: ev.page || null, target: ev.target || null, src: ev.src || null, device: ev.device || null };
       try {
         fetch(URL + '/rest/v1/site_events', {
           method: 'POST', keepalive: true,

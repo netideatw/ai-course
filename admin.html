@@ -411,6 +411,14 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
       <div><h3>訪客從哪裡來</h3><ul class="hl" id="lSources"></ul></div>
       <div><h3>使用裝置</h3><ul class="hl" id="lDevices"></ul></div>
     </div>
+    <div id="byPageBox" hidden>
+      <h2 class="sec">各頁面成效</h2>
+      <div class="tbl"><table>
+        <thead><tr><th>頁面</th><th class="r">瀏覽</th><th class="r">訪客</th><th class="r">點「報名／填寫意願」</th><th class="r">經此頁報名</th><th class="r">轉換率</th></tr></thead>
+        <tbody id="byPage"></tbody>
+      </table></div>
+      <p class="hint">「經此頁報名」：報名者送出表單前最後看過的課程頁（30 天內）；沒看過任何課程頁、直接在首頁填寫的算「首頁」。一次勾選多門課會算多筆。</p>
+    </div>
     <div id="byRefBox">
       <h2 class="sec">各推廣人成效比較</h2>
       <div class="tbl"><table>
@@ -576,7 +584,7 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
 </dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="assets/regdb.js?v=7"></script>
+<script src="assets/regdb.js?v=8"></script>
 <script>
 (function(){
   var SITE=location.href.replace(/admin\.html.*$/,'').replace(/[?#].*$/,'');
@@ -1036,7 +1044,7 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
     $('fRef').value=tr.dataset.code;$('fQ').value='';renderList();tab('r');
   });
   function view(r){
-    var rows=[['報名時間',fmt(r.created_at)],['報名課程',r.batch||'—'],['上課方式',r.mode||'—'],['姓名',r.name],['Email',r.email],['電話',r.phone],['推廣人',pname(r.ref)+(r.ref?'（'+r.ref+'）':'')],['備註',r.note||'—'],
+    var rows=[['報名時間',fmt(r.created_at)],['報名課程',r.batch||'—'],['上課方式',r.mode||'—'],['姓名',r.name],['Email',r.email],['電話',r.phone],['推廣人',pname(r.ref)+(r.ref?'（'+r.ref+'）':'')],['報名來源頁',r.page?pageName(r.page):'—（未記錄）'],['備註',r.note||'—'],
       ['此人報名的課程',personOf(r).batches.map(shortName).join('、')+'（共 '+personOf(r).batches.length+' 堂）']];
     $('dBody').innerHTML='<dl>'+rows.map(function(x){return '<dt>'+x[0]+'</dt><dd>'+esc(x[1])+'</dd>'}).join('')+'</dl>';
     if(!$('dlg').open)$('dlg').showModal();
@@ -1118,8 +1126,8 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
     },function(err){m.classList.add('bad');m.textContent=err.message}).then(function(){btn.disabled=false});
   });
   $('csv').addEventListener('click',function(){
-    var head=['報名時間','報名課程','上課方式','姓名','Email','電話','推廣人','推廣代碼','備註','此人報名堂數','此人報名的課程'];
-    var lines=[head].concat(filtered().map(function(r){return [fmt(r.created_at),r.batch||'',r.mode||'',r.name,r.email,r.phone,pname(r.ref),r.ref||'',r.note||'',personOf(r).batches.length,personOf(r).batches.join('、')]}));
+    var head=['報名時間','報名課程','上課方式','姓名','Email','電話','推廣人','推廣代碼','報名來源頁','備註','此人報名堂數','此人報名的課程'];
+    var lines=[head].concat(filtered().map(function(r){return [fmt(r.created_at),r.batch||'',r.mode||'',r.name,r.email,r.phone,pname(r.ref),r.ref||'',r.page?pageName(r.page):'',r.note||'',personOf(r).batches.length,personOf(r).batches.join('、')]}));
     var csv='﻿'+lines.map(function(row){return row.map(function(v){v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')}).join('\r\n');
     var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='報名名單.csv';a.click();
   });
@@ -1164,6 +1172,18 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
   function loadStats(){
     var r=range(),ref=VIEW?VIEW.code:ROLE&&ROLE.admin?($('aRef').value==='*'?null:$('aRef').value):null;
     RegDB.stats(r.from,r.to,ref).then(function(s){stat=s;renderStats()},function(){$('chart').innerHTML='<p class="empty">數據讀取失敗，請重新整理。</p>'});
+    RegDB.pageStats(r.from,r.to,ref).then(renderPages,function(){renderPages(null)});
+  }
+  // 各頁面成效：固定順序列出首頁與四個課程頁
+  var PAGES=[['index','首頁'],['genai','課程一 生成式AI多媒體 課程頁'],['promo','課程二 AI個人化促銷 課程頁'],['line','課程三 AI客服 課程頁'],['creative','課程四 AI創意素材 課程頁']];
+  function pageName(p){for(var i=0;i<PAGES.length;i++)if(PAGES[i][0]===p)return PAGES[i][1];return p}
+  function renderPages(list){
+    $('byPageBox').hidden=!list;if(!list)return;
+    var by={};list.forEach(function(x){by[x.page]=x});
+    var rows=PAGES.map(function(p){return by[p[0]]||{page:p[0],views:0,visitors:0,cta:0,regs:0}}).concat(list.filter(function(x){return !PAGES.some(function(p){return p[0]===x.page})}));
+    $('byPage').innerHTML=rows.map(function(x){
+      return '<tr><td><b>'+esc(pageName(x.page))+'</b></td><td class="r">'+n(x.views)+'</td><td class="r">'+n(x.visitors)+'</td><td class="r">'+n(x.cta)+'</td><td class="r">'+n(x.regs)+'</td><td class="r">'+pct(x.regs,x.visitors)+'</td></tr>';
+    }).join('');
   }
   function renderStats(){
     var s=stat,t=s.totals;
