@@ -247,6 +247,12 @@ details.tv summary{cursor:pointer;font-size:13px;color:var(--accent);font-weight
 td.r,th.r{text-align:right;font-family:var(--f-num)}
 .mylink{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--sunk);border-radius:12px;padding:12px 14px;margin-bottom:18px;word-break:break-all}
 .mylink b{color:var(--ink)}
+.links{display:grid;gap:10px;margin-bottom:12px}
+.links .mylink{margin:0;display:grid;grid-template-columns:1fr auto;gap:4px 12px}
+.links .mylink span{grid-column:1;font-weight:700;color:var(--ink)}
+.links .mylink b{grid-column:1;font-weight:400;font-size:13px;color:var(--muted)}
+.links .mylink button{grid-column:2;grid-row:1/3;align-self:center}
+@media (max-width:640px){.links .mylink{grid-template-columns:1fr}.links .mylink button{grid-column:1;grid-row:auto;margin-top:6px}}
 .acct{font-size:13px;line-height:1.9}
 </style>
 </head>
@@ -431,7 +437,9 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
   </section>
 
   <section class="card panel" id="panel-m" role="tabpanel" aria-labelledby="tab-m" hidden>
-    <div class="mylink"><span>我的專屬推廣連結：</span><b id="myLink"></b><button type="button" id="myCopy">複製連結</button></div>
+    <h2 class="sec" style="margin-top:0">我的專屬推廣連結</h2>
+    <div class="links" id="myLinks"></div>
+    <p class="hint">任何一個連結都帶有你的推廣代碼。訪客從任一連結進站後 30 天內報名，都算你的。</p>
     <div class="tbl"><table>
       <thead><tr><th>報名時間</th><th>課程</th><th>姓名</th></tr></thead>
       <tbody id="mBody"></tbody>
@@ -560,6 +568,12 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
   </form>
 </dialog>
 
+<dialog id="lkDlg" aria-labelledby="lkTitle">
+  <div class="dh"><h2 id="lkTitle">推廣連結</h2><form method="dialog"><button aria-label="關閉">關閉</button></form></div>
+  <p>推廣人：<b id="lkWho"></b></p>
+  <div class="links" id="lkList"></div>
+</dialog>
+
 <dialog id="acDlg" aria-labelledby="acTitle">
   <div class="dh"><h2 id="acTitle">加入推廣者登入帳號</h2><form method="dialog"><button aria-label="關閉">關閉</button></form></div>
   <form id="acForm" class="pwf">
@@ -591,7 +605,19 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
   var regs=[],proms=[],trash=[];
   var $=function(id){return document.getElementById(id)};
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-  function link(code){return SITE+'?ref='+encodeURIComponent(code)}
+  function link(code,page){return SITE+(page||'')+'?ref='+encodeURIComponent(code)}
+  // 推廣連結：首頁＋四個課程頁，每個都帶推廣代碼
+  var LINK_PAGES=[['','首頁（四門課總覽＋填寫表單）'],['course-genai.html','課程一 生成式AI多媒體轉化與創作'],['course-promo.html','課程二 AI驅動個人化促銷'],['course-line.html','課程三 AI客服工具操作與回應管理'],['course-creative.html','課程四 AI創意行銷素材生成']];
+  function linksHtml(code){
+    return LINK_PAGES.map(function(p){var u=link(code,p[0]);
+      return '<div class="mylink"><span>'+esc(p[1])+'</span><b>'+esc(u)+'</b><button type="button" data-copylink="'+esc(u)+'">複製連結</button></div>';
+    }).join('');
+  }
+  document.addEventListener('click',function(e){
+    var b=e.target.closest('[data-copylink]');if(!b)return;
+    var t=b.dataset.copylink;
+    (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='已複製';setTimeout(function(){b.textContent='複製連結'},1500)},function(){prompt('複製這個連結：',t)});
+  });
   function pname(code){if(!code)return '（直接報名）';var p=proms.find(function(x){return x.code===code});return p?p.name:code+'（未登記）'}
   function fmt(iso){var d=new Date(iso),p=function(n){return String(n).padStart(2,'0')};return (d.getFullYear()-1911)+'/'+p(d.getMonth()+1)+'/'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())}
 
@@ -611,7 +637,7 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
     $('tab-m').hidden=!on;
     $('ttl').textContent=on?'推廣者後台｜'+p.name:'報名後台';
     document.title=(on?'推廣者後台':'報名後台')+'｜次產業培訓班';
-    if(on)$('myLink').textContent=link(p.code);
+    if(on)$('myLinks').innerHTML=linksHtml(p.code);
   }
   // 管理員檢視推廣者後台：用管理員權限讀取該推廣者的數據，畫面與推廣者看到的相同
   var VIEW=null;
@@ -958,7 +984,7 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
         '<td>'+(row.code?'<span class="code">'+esc(row.code)+'</span>':'<span class="muted">—</span>')+'</td>'+
         '<td class="n">'+row.list.length+'</td>'+
         '<td class="names">'+(row.list.length?row.list.map(function(r){return esc(r.name)}).join('、'):'<span class="muted">尚無</span>')+'</td>'+
-        '<td>'+(row.code?'<button type="button" data-copy="'+esc(link(row.code))+'">複製連結</button>':'')+'</td>'+
+        '<td>'+(row.code?'<button type="button" data-links="'+esc(row.code)+'">推廣連結（5）</button>':'')+'</td>'+
         '<td class="acct">'+acct(row.code,reg)+'</td>'+
         '<td>'+(reg?'<button type="button" class="del" data-delp="'+esc(row.code)+'">移除</button>':'')+'</td></tr>';
     }).join('');
@@ -1015,10 +1041,9 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
 
   $('pBody').addEventListener('click',function(e){
     var b=e.target.closest('button');
-    if(b&&b.dataset.copy!=null){
-      var t=b.dataset.copy;
-      (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='已複製';setTimeout(function(){b.textContent='複製連結'},1500)},function(){prompt('複製這個連結：',t)});
-      return;
+    if(b&&b.dataset.links){
+      $('lkWho').textContent=pname(b.dataset.links)+'（'+b.dataset.links+'）';$('lkList').innerHTML=linksHtml(b.dataset.links);
+      $('lkDlg').showModal();return;
     }
     if(b&&b.dataset.viewas){viewAs(b.dataset.viewas);return}
     if(b&&b.dataset.addacct){
@@ -1155,10 +1180,6 @@ td.r,th.r{text-align:right;font-family:var(--f-num)}
       $('mBody').innerHTML=list.length?list.map(function(r){return '<tr><td class="num">'+fmt(r.created_at)+'</td><td>'+esc(r.batch)+'</td><td>'+esc(r.name)+'</td></tr>'}).join(''):'<tr><td colspan="3" class="empty">目前還沒有透過你的連結報名的人</td></tr>';
     });
   }
-  $('myCopy').addEventListener('click',function(){
-    var b=this,t=$('myLink').textContent;
-    (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='已複製';setTimeout(function(){b.textContent='複製連結'},1500)},function(){prompt('複製這個連結：',t)});
-  });
 
   // ── 數據分析 ──
   var SINCE='2026-10-01',days=7,metric='views',stat=null;
