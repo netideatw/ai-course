@@ -4,7 +4,8 @@
 (function(){
   var COURSES={genai:'生成式AI多媒體轉化與創作',promo:'AI驅動個人化促銷',line:'AI客服工具操作與回應管理',creative:'AI創意行銷素材生成'};
   // 已開放正式報名的課程：填寫意願送出後，直接帶到報名網站
-  var REG_URL={'生成式AI多媒體轉化與創作':'https://www.niea-bizboost.tw/r/JosgKASUkoat'};
+  // 一次送出多門已開放的課程時不自動跳轉，只列出各課程的報名連結讓使用者點選
+  var REG_URL={'生成式AI多媒體轉化與創作':'https://www.niea-bizboost.tw/r/JosgKASUkoat','AI創意行銷素材生成':'https://www.niea-bizboost.tw/activity/db66d4ec-c51d-421c-949f-3e90b44df0b4'};
   var KEY='tc_ref', DAYS=30, ref='';
   var m=location.search.match(/[?&]ref=([^&#]*)/);
   if(m){
@@ -51,7 +52,7 @@
         if(b.open){openCount++;return}
         var c=document.querySelector('[data-course-card="'+b.name+'"]');
         if(c){c.querySelector('.full').hidden=false;var ob=c.querySelector('[data-open-badge]');if(ob)ob.hidden=true}
-        if(REG_URL[b.name])document.querySelectorAll('.head [data-open-badge]').forEach(function(x){x.hidden=true});
+        if(REG_URL[b.name])document.querySelectorAll('.head [data-open-badge="'+b.name+'"]').forEach(function(x){x.hidden=true});
         document.querySelectorAll('[data-pick="'+b.name+'"]').forEach(function(x){x.setAttribute('aria-disabled','true');x.textContent='已額滿'});
         if(!f)return;
         var inp=f.querySelector('[name=batch][value="'+b.name+'"]');if(!inp)return;
@@ -109,12 +110,17 @@
     var btn=f.querySelector('button[type=submit]');btn.disabled=true;btn.textContent='送出中…';
     var old=document.getElementById('dupMsg');if(old)old.remove();
     function names(l){return l.map(function(b){return '「'+b+'」'}).join('、')}
-    // 送出（或已填過）的課程中有已開放報名的：顯示前往報名按鈕，幾秒後自動跳轉
+    // 送出（或已填過）的課程中有已開放報名的：只有一門時顯示按鈕並自動跳轉；
+    // 兩門以上時不跳轉，列出每門課的報名連結讓使用者自行點選
     function regGo(list){
-      var c=list.filter(function(b){return REG_URL[b]})[0];if(!c)return '';
-      var url=REG_URL[c];
-      setTimeout(function(){location.href=url},4000);
-      return '<div class="reg-go"><p><b>「'+esc(c)+'」已開放報名！</b>4 秒後將自動帶您前往報名網站，請在該網站完成報名，才算取得上課資格。</p><p><a class="btn hot" href="'+esc(url)+'">立即前往報名網站</a></p></div>';
+      var cs=list.filter(function(b,i){return REG_URL[b]&&list.indexOf(b)===i});if(!cs.length)return '';
+      if(cs.length===1){
+        var url=REG_URL[cs[0]];
+        setTimeout(function(){location.href=url},4000);
+        return '<div class="reg-go"><p><b>「'+esc(cs[0])+'」已開放報名！</b>4 秒後將自動帶您前往報名網站，請在該網站完成報名，才算取得上課資格。</p><p><a class="btn hot" href="'+esc(url)+'">立即前往報名網站</a></p></div>';
+      }
+      return '<div class="reg-go"><p><b>'+esc(names(cs))+'已開放報名！</b>每門課需分別報名，請點下方按鈕前往報名網站，在該網站完成報名，才算取得上課資格。</p>'+
+        cs.map(function(c){return '<p><a class="btn hot" href="'+esc(REG_URL[c])+'" target="_blank" rel="noopener">報名「'+esc(c)+'」</a></p>'}).join('')+'</div>';
     }
     // 所選課程都已用相同 Email 或電話填過：提醒不需重複填寫
     function showDup(d,list){
